@@ -1,6 +1,6 @@
 # Repository Organization Policy: Three-Tier Structure with Graduation Criteria
 
-***Scope***: GCP-HCP
+**Scope**: GCP-HCP
 
 **Date**: 2026-02-25
 
@@ -24,7 +24,7 @@ The team lacks formal criteria for when to create new repositories, leading to r
 
 ## Decision Rationale
 
-* **Justification**: The three-tier approach honors both perspectives from the team discussion. Defaulting new work to `experiments/` satisfies the "minimize repos" principle by keeping everything consolidated until there is a clear reason to split. Graduation criteria satisfy the "separate concerns" principle by providing an objective, repeatable mechanism for determining when separation is warranted. Deployment artifacts (Helm charts, ArgoCD manifests, Terraform modules, bootstrap manifests) belong in `gcp-hcp-infra` because mixing deployable infrastructure with documentation creates confusion about repository purpose and ownership.
+* **Justification**: The three-tier approach honors both perspectives from the team discussion. Defaulting new work to `experiments/` satisfies the "minimize repos" principle by keeping everything consolidated until there is a clear reason to split. Graduation criteria satisfy the "separate concerns" principle by providing an objective, repeatable mechanism for determining when separation is warranted. Deployment artifacts follow an ownership-based model: app-specific Helm charts co-locate with the application code (same team maintains both), while charts written to deploy third-party applications and ArgoCD Application manifests belong in `gcp-hcp-infra`. Terraform modules and other infrastructure-as-code belong in `gcp-hcp-infra`. Bootstrap manifests live in `gcp-hcp/bootstrap/` because they must be in a public repository to avoid a chicken-and-egg problem with ConfigSync cluster access.
 * **Evidence**: Industry practice demonstrates that mixed-concern repositories create confusion about purpose, complicate CI/CD pipelines, and make OWNERS/CODEOWNERS files unwieldy. The team has already naturally adopted this pattern by establishing `gcp-hcp-infra` as a separate repository for infrastructure-as-code.
 * **Comparison**: The monorepo approach would force all CI/CD pipelines into a single repository, creating complexity and blast radius concerns. Liberal repo creation would impose administrative overhead disproportionate to team size and fragment attention across many repositories with minimal content.
 
@@ -54,9 +54,10 @@ Supporting signals that strengthen the case for graduation (but are not required
 | Jira templates, process docs | `gcp-hcp/docs/` | Core project documentation |
 | Time-bounded spikes/PoCs | `gcp-hcp/experiments/` | Low-friction starting point; graduate when criteria met |
 | Terraform modules | `gcp-hcp-infra` | Infrastructure-as-code |
-| Helm charts | `gcp-hcp-infra` | Deployment artifacts |
-| ArgoCD manifests | `gcp-hcp-infra` | GitOps deployment configuration |
-| Bootstrap manifests | `gcp-hcp-infra` | Cluster bootstrap configuration |
+| App-specific Helm charts | With the application code | Tightly coupled to app, same maintainer |
+| Platform/third-party Helm charts | `gcp-hcp-infra` | Team-maintained deployment config for external apps |
+| ArgoCD Application manifests | `gcp-hcp-infra` | GitOps deployment configuration |
+| Bootstrap manifests | `gcp-hcp/bootstrap/` | Must be public (ConfigSync chicken-and-egg) |
 | Graduated tooling/services | Dedicated repository | Met all four graduation criteria |
 
 ## Experiments Directory Policy
@@ -65,7 +66,10 @@ Supporting signals that strengthen the case for graduation (but are not required
 
 1. **Start**: Create a subdirectory under `experiments/` with a README explaining the experiment's purpose and link to a Jira ticket tracking the work.
 2. **Execute**: Develop the spike or proof-of-concept within the experiment directory. Follow standard PR review processes.
-3. **Conclude**: When the experiment is complete, either graduate the work to a dedicated repository (if graduation criteria are met) or archive it by adding an `ARCHIVED.md` file noting the outcome and date.
+3. **Review**: Experiments are reviewed quarterly. Experiments with no PR activity since the last review are flagged for conclusion or graduation.
+4. **Conclude**: When the experiment is complete, either graduate the work to a dedicated repository (if graduation criteria are met) or archive it by adding an `ARCHIVED.md` file noting the outcome and date.
+   - Before archiving, remove or disable experiment-created cloud resources, secrets, scheduled jobs, and CI automation not intended for long-term operation.
+   - Record cleanup status (what was removed/retained and why) in `ARCHIVED.md`.
 
 ## Lightweight Governance
 
