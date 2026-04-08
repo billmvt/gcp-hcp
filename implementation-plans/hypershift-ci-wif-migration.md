@@ -27,7 +27,7 @@ Additional mitigation layers:
 
 **Pool and provider architecture:**
 
-A single WIF pool (`openshift-ci`) with one OIDC provider per build cluster. This keeps IAM simple — one `principalSet://` binding on the SA covers all providers, and the attribute condition is consistent across clusters. Adding or removing a build cluster is a single Terraform change (add/remove a provider) with no IAM modifications. If trust needs to be revoked for a specific cluster, its provider can be deleted or disabled within the pool without affecting others. The Terraform module uses `for_each` on a `wif_providers` variable map of `{ provider_id => issuer_uri }`.
+A single WIF pool (`openshift-ci`) with one OIDC provider per build cluster. IAM bindings use `principalSet://.../attribute.service_account/<sa-name>` to scope impersonation to specific CI test identities (e.g., `e2e-gke`, `e2e-v2-gke`), rather than granting access to all identities in the pool. The attribute condition on the provider adds namespace-level filtering (`ci-op-*`). Adding or removing a build cluster is a single Terraform change (add/remove a provider) with no IAM modifications. If trust needs to be revoked for a specific cluster, its provider can be deleted or disabled within the pool without affecting others. The Terraform module uses `for_each` on a `wif_providers` variable map of `{ provider_id => issuer_uri }`.
 
 **Authentication flow:**
 
@@ -102,7 +102,7 @@ Single PR in `gcp-hcp-infra` containing all Terraform changes. The first `atlant
      - `allowed_audiences` set to a custom string (e.g., `gcp-hcp-hypershift-ci-wif`) shared across all providers — NOT the default issuer URL
      - Attribute mapping: `google.subject` = `assertion.sub`, `attribute.namespace` = `assertion['kubernetes.io']['namespace']`, `attribute.service_account` = `assertion['kubernetes.io']['serviceaccount']['name']`
      - Attribute condition from variable (restricts to `ci-op-*` namespaces AND specific test SA names)
-   - `google_service_account_iam_member.wif_workload_identity_user` - Allow federated identities (`principalSet://.../openshift-ci/*`) to impersonate the `hypershift-ci` SA
+   - `google_service_account_iam_member.wif_workload_identity_user` - One IAM binding per test SA name (using `for_each`), scoped via `principalSet://.../attribute.service_account/<sa-name>` to restrict impersonation to specific CI test identities only
    - Pool and providers depend on `null_resource.atlantis_iam_ready`
 
 5. **Add WIF outputs** (modify: `terraform/modules/hypershift-ci/outputs.tf` and `terraform/config/hypershift-ci/main.tf`):
