@@ -99,7 +99,7 @@ Single PR in `gcp-hcp-infra` containing all Terraform changes. The first `atlant
 4. **Create WIF resources** (new file: `terraform/modules/hypershift-ci/workload-identity-federation.tf`):
    - `google_iam_workload_identity_pool.openshift_ci` - Single WIF pool for all build clusters
    - `google_iam_workload_identity_pool_provider.build_clusters` - One OIDC provider per entry in `wif_providers` (using `for_each`), each with:
-     - `allowed_audiences` left as default (issuer URL). Can be tightened to a custom audience string when [ci-tools#5093](https://github.com/openshift/ci-tools/pull/5093) lands
+     - `allowed_audiences` explicitly set to the provider's `issuer_uri` so that the pod's default projected SA token (whose `aud` = issuer URL) is accepted. GCP's default audience is the provider's canonical resource name, not the issuer URL, so this must be set explicitly. Can be tightened to a custom audience string when [ci-tools#5093](https://github.com/openshift/ci-tools/pull/5093) lands
      - Attribute mapping: `google.subject` = `assertion.sub`, `attribute.namespace` = `assertion['kubernetes.io']['namespace']`, `attribute.service_account` = `assertion['kubernetes.io']['serviceaccount']['name']`
      - Attribute condition from variable (restricts to `ci-op-*` namespaces AND specific test SA names)
    - `google_service_account_iam_member.wif_workload_identity_user` - One IAM binding per test SA name (using `for_each`), scoped via `principalSet://.../attribute.service_account/<sa-name>` to restrict impersonation to specific CI test identities only
