@@ -48,7 +48,9 @@ Initiatives represent internal/architectural work at Level 4. See [Jira Hierarch
 - [ ] **Assignee** is assigned
 - [ ] At least one **Epic** has been identified for breakdown
 
-**Template**: [docs/jira-feature-template.md](./jira-feature-template.md) (adapt for Initiative level)
+**Template**: Use [docs/jira-feature-template.md](./jira-feature-template.md) as a starting point, adapting for Initiative-level scope (internal/architectural work vs customer-facing features)
+
+**Note**: A dedicated Initiative template will be created in a follow-up task.
 
 ---
 
@@ -133,7 +135,7 @@ Tasks represent finite pieces of internal work (process, tooling, documentation,
 - [ ] **Technical Approach** outlines major steps or approach
 - [ ] **Acceptance Criteria** are specific and testable (2+ criteria as checkboxes)
 - [ ] **Priority** is set (Blocker/Critical/Major/Normal/Minor)
-- [ ] **Epic Link** is set **if this Task is part of a larger Epic**
+- [ ] **Epic Link field** is set **if this Task is part of a larger Epic**
 - [ ] **Dependencies** are identified
 - [ ] **Assignee** is assigned (or team agrees on who will pick it up)
 - [ ] Task is **right-sized** and clearly scoped
@@ -259,7 +261,7 @@ The `jira:gcp-hcp` skill (from openshift-eng/ai-helpers) should reference this D
 ### During Backlog Refinement
 1. Review upcoming work against DoR
 2. Fill in gaps collaboratively
-3. Split oversized items (Stories >5 points, Epics that are too large)
+3. Split oversized items (Stories at 13 points must split, consider splitting 8-point Stories; split Epics that are too large)
 4. Update priorities based on team goals
 5. Create parent issues (Epic/Feature/Initiative) only when needed for grouping or tracking
 
