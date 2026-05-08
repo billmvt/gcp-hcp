@@ -20,7 +20,7 @@ The Definition of Ready (DoR) establishes clear, checkable criteria for when a b
 
 ## Jira Hierarchy Guidance
 
-**Work from the bottom-up**: Start with the work item (Story, Task, Bug), then create parent issues only when they serve a real purpose for grouping, coordination, or visibility.
+**Don't create unnecessary parent issues**: Link work items to existing parents when appropriate, but standalone Stories/Tasks/Bugs are valid when they don't need grouping. The team typically decomposes top-down from Features → Epics → Stories.
 
 The GCP HCP team uses a 6-level Jira hierarchy within the broader Hybrid Platforms organization. For complete details on hierarchy structure, linking mechanisms, valid structures, and when to create parent issues, see:
 

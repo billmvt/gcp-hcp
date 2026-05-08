@@ -4,9 +4,9 @@ This document describes the Jira issue hierarchy used by the GCP HCP team within
 
 ## Overview
 
-**When looking at work from the bottom to the top of the hierarchy, only create issues as far up in the hierarchy as necessary to ensure that issues align with their intended purpose.**
+**Only create parent issues when they serve a real purpose for grouping, coordination, or visibility.**
 
-Work from the **bottom-up**: Start with the work item (Story, Task, Bug), then create parent issues only when they serve a real purpose for grouping, coordination, or visibility.
+The GCP team typically works **top-down** — decomposing Features into Epics and Epics into Stories. However, standalone Stories, Tasks, or Bugs are valid when work doesn't require grouping. Link to existing parents when appropriate; don't create unnecessary hierarchy.
 
 ---
 
@@ -55,7 +55,7 @@ Level 2: Story / Task / Bug (GCP)          [Execution - Individual Work]
 
 ## Valid Structures for GCP HCP Team
 
-Work from the **bottom-up**. Start with the work item, then create parents only as far up as needed:
+The team typically decomposes **top-down** from Features → Epics → Stories, but not all work requires the full hierarchy. Create parents only when needed:
 
 ### Common Structures
 
@@ -119,7 +119,7 @@ These are managed at the org-wide strategy level by leadership teams, not within
 
 ---
 
-## Bottom-Up Principle
+## When Parent Issues Are Optional
 
 **Don't create parent issues just to satisfy hierarchy.**
 
@@ -149,7 +149,7 @@ When creating or updating Jira issues programmatically:
    - Stories/Tasks/Bugs → Epic: Use **Epic Link field**
    - Epics → Feature or Initiative: Use **Parent Link field** (choose Feature OR Initiative, not both)
 3. **Create Epic first, then link to Feature** - Defensive two-step approach prevents creation failures
-4. **Respect bottom-up principle** - Don't force creation of parent issues unless explicitly requested or contextually necessary
+4. **Don't force parent creation** - Only create parent issues when explicitly requested or contextually necessary for grouping/coordination
 
 ### For Manual Jira Usage
 
