@@ -271,11 +271,6 @@ The `jira:gcp-hcp` skill (from openshift-eng/ai-helpers) should reference this D
 3. Ask Claude to create compliant issues: "Create a Story for [feature] that meets DoR"
 4. Let Claude know if work is standalone: "Create a standalone Story for [work] - no Epic needed"
 
-### Workflow Integration
-- **Kanban**: Items move from "Backlog" → "Ready" only when DoR is met
-- **Pull-based**: Team members pull from "Ready" when capacity allows
-- **Flow efficiency**: DoR ensures items entering active development are well-defined, reducing cycle time variability
-
 ---
 
 ## Related Documentation
