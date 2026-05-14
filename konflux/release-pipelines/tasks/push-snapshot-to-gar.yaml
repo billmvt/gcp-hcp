@@ -171,6 +171,11 @@ spec:
               --argjson t "$repo_tags" \
               '$d+$t|unique')
 
+            if [[ "$(jq 'length' <<< "$all_tags")" -eq 0 ]]; then
+              echo "ERROR: No tags resolved for component $NAME in repository $REPOSITORY"
+              exit 1
+            fi
+
             while IFS= read -r tag; do
               if [[ -n "$git_sha" && "$git_sha" != "null" ]]; then
                 tag="${tag//\{\{ git_short_sha \}\}/${git_sha:0:7}}"
