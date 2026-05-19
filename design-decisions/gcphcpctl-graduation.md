@@ -10,7 +10,7 @@ Graduate the GCP HCP CLI (currently at `github.com/ckandag/gcp-hcp-cli`) to a de
 
 ## Context
 
-`gcp-hcp-ctl` is the designated CLI tool for the GCP HCP platform, currently providing the `ops` subcommand. It is being graduated from a personal GitHub account (`github.com/ckandag/gcp-hcp-cli`) to establish a proper organizational home. As the platform transitions from the legacy CLS system to CLM (Hyperfleet), `gcp-hcp-ctl` will replace both the existing Python CLI (`github.com/apahim/gcp-hcp-cli`) and the ad-hoc scripts currently used for Hyperfleet API interactions.
+`gcp-hcp-ctl` is the designated CLI tool for the GCP HCP platform, currently providing the `ops` subcommand. It is being graduated from a personal GitHub account (`github.com/ckandag/gcp-hcp-cli`) to establish a proper organizational home. As the platform transitions from the legacy CLS system to CLM (Hyperfleet), `gcp-hcp-ctl` will replace both the existing Python CLI (a separate tool at `github.com/apahim/gcp-hcp-cli`) and the ad-hoc scripts currently used for Hyperfleet API interactions.
 
 - **Problem Statement**: Without a dedicated repository, `gcp-hcp-ctl` lacks proper access controls and a team-managed CI/CD pipeline to grow sustainably.
 
