@@ -30,7 +30,7 @@ GCP HCP requires a secure, automated pipeline to build container images, publish
 
 The pipeline has four layers:
 
-```
+```text
 Layer 1: Build (Konflux)
   Code commit → Konflux build → OCI image in Quay
 
@@ -49,29 +49,31 @@ Layer 4: Consume (MutatingAdmissionPolicy)
 
 Images are categorized into three tiers based on ownership, each with a different path to the regional cache:
 
-| Tier | Source | Examples | Path to GAR | Regional Cache |
-|------|--------|----------|-------------|----------------|
-| **Tier 1: Team-owned** | Konflux build → GAR commons | gcp-hcp-common-tools, gcp-release-utils | Konflux → WIF → `us-docker.pkg.dev/gcp-hcp-commons/gcp-hcp-images` | Pull-through from commons GAR |
-| **Tier 2: Partner-owned** | Konflux build → GAR commons | HyperShift operator, HyperFleet components | Same as Tier 1 (partner teams publish direct to our GAR) | Pull-through from commons GAR |
-| **Tier 3: Upstream** | Quay.io (Red Hat-managed) | OCP component images (`ocp-v4.0-art-dev`), operator indexes | Remain in quay.io (not republished) | Pull-through from quay.io (authenticated) |
+| Tier | Source | Path to GAR | Regional Cache |
+|------|--------|-------------|----------------|
+| **Tier 1: Team-owned** | Konflux build → GAR commons | Konflux → WIF → `us-docker.pkg.dev/gcp-hcp-commons/gcp-hcp-images` | Pull-through from commons GAR |
+| **Tier 2: Partner-owned** | Konflux build → GAR commons | Same as Tier 1 (partner teams publish direct to our GAR) | Pull-through from commons GAR |
+| **Tier 3: Upstream** | External registries (quay.io, ghcr.io, registry.redhat.io, etc.) | Remain in source registries (not republished) | Pull-through cache per upstream registry |
+| **Not cached** | GKE-managed registries | Already regional (served from GCP infrastructure) | No action needed |
 
 **Tier 1 and 2** images are published directly to our GAR commons repository. They flow through the same `gcp-hcp-images` pull-through cache. Partner teams (HyperShift, HyperFleet) will update their Konflux release pipelines to publish to our GAR alongside their existing Quay targets.
 
-**Tier 3** images stay in quay.io — we do not republish them. Instead, a separate pull-through cache (`quay-cache`) in each region project proxies from quay.io with authenticated upstream access. The quay.io pull secret is stored in Secret Manager in the global project (where all other secrets are managed) and shared by all region caches.
+**Tier 3** covers all third-party and upstream images — OCP components, operators, controllers, and any other tooling we consume but don't build. These stay in their source registries and are not republished. Instead, a pull-through cache is created in each region project for each upstream registry that needs caching. GAR remote repositories are scoped to a single upstream, so each distinct registry (quay.io, ghcr.io, registry.redhat.io, etc.) gets its own cache. Registries that require authentication store their pull secrets in Secret Manager in the global project.
 
-Both cache types are consumed identically: MutatingAdmissionPolicy rewrites source URLs to the regional cache at pod admission time. Separate CEL mutations handle each source registry prefix.
+**GKE-managed images** (GKE system components, Config Connector) are already served from regional GCP infrastructure and do not need caching.
+
+All cache types are consumed identically: MutatingAdmissionPolicy rewrites source URLs to the regional cache at pod admission time. A CEL mutation is configured per source registry prefix. Adding a new upstream registry requires creating a new cache repo and adding a `sourceRepos` entry to the image rewriter chart.
 
 ### Regional Cache Architecture
 
-Each region project hosts two pull-through cache repositories:
+Each region project hosts pull-through cache repositories — one for our own images and one per upstream registry that needs caching:
 
-```
+```text
 Region Project ({region}-docker.pkg.dev/{region-project}/)
-├── gcp-hcp-images/     ← pull-through from us-docker.pkg.dev/gcp-hcp-commons/gcp-hcp-images
-│                          (Tier 1 + 2: team and partner images, no upstream auth needed)
-│
-└── quay-cache/          ← pull-through from quay.io
-                           (Tier 3: upstream OCP images, requires pull secret in Secret Manager)
+├── gcp-hcp-images/       ← pull-through from commons GAR (Tier 1 + 2, no upstream auth)
+├── {registry}-cache/     ← pull-through from each upstream registry (Tier 3)
+│                            One cache per upstream registry, some require auth
+└── ...                      Additional caches added as new upstream registries are needed
 ```
 
 Management clusters pull from their parent region's caches via project-level `artifactregistry.reader` IAM — the same pattern used for `gcp-hcp-images`.
