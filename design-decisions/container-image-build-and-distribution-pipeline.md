@@ -18,11 +18,10 @@ GCP HCP requires a secure, automated pipeline to build container images, publish
   - Konflux is Red Hat's mandated build system for container images — builds must run there, not in GCP
   - GCP HCP infrastructure spans multiple projects (commons, global, region, management-cluster) with strict IAM boundaries
   - No service account keys — all cross-project authentication must use Workload Identity Federation or native GKE identity
-  - Customer worker nodes will eventually run in separate customer-owned GCP projects (future consideration)
+  - Customer worker nodes run in separate customer-owned GCP projects
   - GKE Autopilot clusters require beta API enablement for MutatingAdmissionPolicy
 
 - **Assumptions**:
-  - Konflux production cluster (`kflux-prd-rh02`) is the authoritative build environment
   - The `gcp-hcp-commons` project is the single shared project for cross-environment resources (GAR, WIF, DNS)
   - Each region project has its own GKE cluster(s) where images are consumed
   - Management cluster GKE nodes pull from their parent region's pull-through cache
@@ -79,7 +78,7 @@ Management clusters pull from their parent region's caches via project-level `ar
 
 ## Shared Pipeline Evaluation
 
-The `app-sre/shared-pipelines` pattern was evaluated as a potential model. In that pattern, a dedicated repository holds pipeline definitions and components reference them via `pipelineRef`. We adopted a similar approach: our GAR push pipeline (`push-snapshot-to-gar`) lives in the `gcp-hcp` repository and is referenced via Tekton's git resolver from the Konflux release plan. This provides the same benefits — shared pipeline definitions, centralized updates — without requiring a separate shared-pipelines repository. The standard Quay push path uses Konflux's managed `rh-push-to-external-registry` pipeline from `release-service-catalog`, which is itself a shared pipeline maintained by the releng team.
+The `app-sre/shared-pipelines` pattern was evaluated as a potential model. In that pattern, a dedicated repository holds pipeline definitions and components reference them via `pipelineRef`. We adopted this approach: our GAR push pipeline (`push-snapshot-to-gar`) is contributed to the [Konflux community catalog](https://github.com/konflux-ci/community-catalog) and referenced via Tekton's git resolver from the Konflux release plan. This provides the same benefits — shared pipeline definitions, centralized updates, community visibility — while following Konflux's standard contribution model. The standard Quay push path uses Konflux's managed `rh-push-to-external-registry` pipeline from `release-service-catalog`, which is itself a shared pipeline maintained by the releng team.
 
 ## Alternatives Considered
 
@@ -113,14 +112,14 @@ The `app-sre/shared-pipelines` pattern was evaluated as a potential model. In th
 
 ### Konflux Tenant Configuration
 
-A dedicated tenant `gcp-hcp-tenant` on the Konflux production cluster (`kflux-prd-rh02`) manages two applications:
+A dedicated Konflux tenant (`gcp-hcp-tenant`) manages all GCP HCP container images. Each image is registered as a Konflux application with a component that points to its source repository and Containerfile. Examples of current applications:
 
 | Application | Source | Dockerfile | Visibility |
 |---|---|---|---|
 | `gcp-hcp-common-tools` | `openshift-online/gcp-hcp-infra` | `images/tools/Containerfile` | Private |
 | `gcp-release-utils` | `openshift-online/gcp-hcp-infra` | `images/release-utils/Containerfile` | Public |
 
-Both applications use the `docker-build-oci-ta` build pipeline. Builds trigger on commits to the `main` branch.
+Additional images are onboarded following the same pattern. All applications use the `docker-build-oci-ta` build pipeline with builds triggering on commits to the `main` branch.
 
 ### Dual Release Path
 
@@ -156,7 +155,7 @@ Each region project creates a pull-through cache repository that transparently p
 - **Module**: `terraform/modules/gar-pull-through-cache`
 - **Repository**: `{region}-docker.pkg.dev/{region-project}/gcp-hcp-images` (mode: `REMOTE_REPOSITORY`)
 - **IAM**: The AR service agent in the cache project (`service-{project_number}@gcp-sa-artifactregistry.iam.gserviceaccount.com`) is granted `artifactregistry.reader` on the commons repo
-- **Cleanup**: 90-day retention policy (configurable via `cache_retention_days`). Based on upload time since GCP does not support last-pull conditions. Deleted images are re-fetched from the source on next pull.
+- **Cleanup**: 365-day retention policy (configurable via `cache_retention_days`). Based on upload time since GCP does not support last-pull conditions. Deleted images are re-fetched from the source on next pull.
 - **Resilience**: Once an image is cached locally, it serves from the cache even if the upstream repository is unavailable.
 
 IAM propagation is handled with explicit `time_sleep` resources (30s for AR service agent provisioning, 60s for IAM propagation before cache validation).
@@ -198,22 +197,12 @@ To onboard a new container image to this pipeline:
 
 No infrastructure changes are needed — the pull-through cache, IAM bindings, and MutatingAdmissionPolicy handle distribution automatically for any image in the `gcp-hcp-images` repository.
 
-### Resolved Blockers
-
-The following blockers were identified and resolved during implementation:
-
-- **Konflux access**: `gcp-hcp-tenant` provisioned on `kflux-prd-rh02` with admin, maintainer, and contributor RBAC bindings
-- **GAR authentication**: WIF pool and OIDC provider configured in `gcp-hcp-commons`; `gar-wif-config` ConfigMap deployed to tenant namespace
-- **Cross-project IAM**: Atlantis and e2e-deployer granted `artifactregistry.admin` on commons GAR repo for managing pull-through cache reader bindings
-- **GKE beta APIs**: `admissionregistration.k8s.io/v1beta1` enabled on integration region and MC clusters (opt-in per config, not default)
-- **IAM propagation races**: Addressed with `time_sleep` resources and project-level IAM bindings (instead of repository-level) to avoid ordering dependencies between parallel Terraform applies
-
 ### Repositories Involved
 
 | Repository | Role |
 |---|---|
 | `openshift-online/gcp-hcp-infra` | Image source (Containerfiles), Terraform (GAR, WIF, cache, IAM), Helm chart (image rewriter), ArgoCD configs |
-| `openshift-online/gcp-hcp` | Konflux release pipeline definition (push-snapshot-to-gar task) |
+| `konflux-ci/community-catalog` | GAR push release pipeline (`push-snapshot-to-gar` task) |
 | `releng/konflux-release-data` | Konflux tenant config (applications, components, release plans, WIF ConfigMap, service accounts) |
 
 ## Consequences
@@ -225,7 +214,7 @@ The following blockers were identified and resolved during implementation:
 * Zero-touch for new images — any image pushed to commons GAR is automatically available via pull-through cache and MAP rewriting
 * Dual distribution — images available in both GAR (for GKE) and Quay (for external consumers)
 * Attestation preservation — `cosign copy` preserves signatures and attestations from build to GAR
-* Single cleanup policy — 90-day retention on caches keeps storage costs bounded
+* Single cleanup policy — 365-day retention on caches keeps storage costs bounded
 
 ### Negative
 
@@ -233,7 +222,7 @@ The following blockers were identified and resolved during implementation:
 * IAM propagation delays — fresh project deployments require `time_sleep` resources (30s + 60s) for IAM to propagate, adding ~90s to E2E provisioning
 * Beta API dependency — MutatingAdmissionPolicy requires `admissionregistration.k8s.io/v1beta1`, which cannot be disabled once enabled on a GKE cluster
 * Cleanup policy limitation — GCP Artifact Registry only supports upload-time-based cleanup, not last-pull-based. Long-lived images that are still actively used could be cleaned up if not re-cached within the retention window.
-* Customer worker nodes (future) — the current design covers Red Hat-managed clusters. Customer worker nodes in separate GCP projects will require a separate WIF model for image pulls (to be designed).
+* Customer worker nodes — the current design covers Red Hat-managed clusters. Customer worker nodes in separate GCP projects will require a WIF model with OIDC token exchange for image pulls, similar to the Konflux-to-GAR pattern.
 
 ## Cross-Cutting Concerns
 
@@ -260,7 +249,7 @@ The following blockers were identified and resolved during implementation:
 
 ### Cost:
 
-* Regional cache storage cost is bounded by the 90-day cleanup policy
+* Regional cache storage cost is bounded by the 365-day cleanup policy
 * Cross-region egress from commons GAR is reduced to first-pull-only per region per image tag
 * The `gcp-hcp-commons` project uses multi-region (`us`) GAR, which has higher storage cost but lower egress to US-based caches
 
