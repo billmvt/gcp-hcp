@@ -9,7 +9,7 @@
 
 ## Decision
 
-Replace Maestro with Cloud Firestore (Native mode, regional) as the transport layer between CLM on region clusters and management clusters. Each management cluster hosts its own Firestore database in its GCP project. CLM accesses MC databases cross-project via Workload Identity. CLM is the source of truth for desired state and can fully resync specs to a new/rebuilt MC database.
+Replace Maestro with Cloud Firestore (Native mode, regional) as the transport layer between CLM on region clusters and management clusters. Each management cluster hosts two Firestore databases in its GCP project (`specs` and `status`) for IAM-enforced directional isolation. CLM accesses MC databases cross-project via Workload Identity. CLM is the source of truth for desired state and can fully resync specs to a new/rebuilt MC database. Document schema is aligned with ARO kube-applier desire types (`Spec.TargetItem`, `Spec.KubeContent`, `Status.Conditions`).
 
 ## Context
 
@@ -28,7 +28,7 @@ Replace Maestro with Cloud Firestore (Native mode, regional) as the transport la
 
 ## Alternatives Considered
 
-1. **Cloud Firestore (per-MC database)**: One Firestore database per management cluster. IAM-enforced isolation at the database level. Native real-time listeners for change notification. Serverless, no infrastructure to manage. Document-store model compatible with ARO kube-applier patterns.
+1. **Cloud Firestore (per-MC databases)**: Two Firestore databases per management cluster (`specs` + `status`), enabling IAM-enforced directional isolation. Native real-time listeners for change notification. Serverless, no infrastructure to manage. Document schema aligned with ARO kube-applier desire types.
 
 2. **Cloud Spanner (single database with FGAC + views)**: Fine-grained access control with definer's-rights views for read isolation. Change streams for near-real-time notification. However, write isolation is application-enforced only (views are read-only), 100 database roles per database ceiling, and not a document store (breaks ARO compatibility). Higher cost ($200-600/month vs. $10-50/month).
 
@@ -46,8 +46,8 @@ Replace Maestro with Cloud Firestore (Native mode, regional) as the transport la
 
 * **Evidence**:
   - Firestore's multi-database feature (GA since 2023) maps directly to CosmosDB's per-MC container model used by ARO-HCP
-  - Hosting the Firestore database in each MC's own project ties DB lifecycle to MC lifecycle, eliminates the 100-database-per-project limit, and keeps MC agent access local (no cross-project IAM needed for the agent)
-  - IAM grants `roles/datastore.user` per database to individual service accounts — structurally enforced, not application-level
+  - Hosting two Firestore databases (`specs`, `status`) in each MC's own project ties DB lifecycle to MC lifecycle and keeps MC agent access local (no cross-project IAM needed for the agent)
+  - IAM grants differentiated roles per database (`datastore.user` for write, `datastore.viewer` for read) — directional isolation is structurally enforced, not application-level
   - Native real-time listeners eliminate the need for polling infrastructure or CDC pipelines
   - Authentication is fully credential-free: Go SDK uses Application Default Credentials via GKE Workload Identity — no service account keys, database passwords, Auth Proxy sidecars, or secrets to create, rotate, or distribute
   - Cost is 4-60x lower than alternatives ($10-50/month vs. $100-1400/month)
@@ -63,13 +63,13 @@ Replace Maestro with Cloud Firestore (Native mode, regional) as the transport la
 ### Positive
 
 * IAM-enforced per-MC isolation with zero application-layer trust assumptions
-* DB lifecycle naturally tied to MC lifecycle — created during MC provisioning, deleted on MC teardown, no orphaned databases
+* DB pair lifecycle naturally tied to MC lifecycle — created during MC provisioning, deleted on MC teardown, no orphaned databases
 * Native real-time listeners eliminate polling latency and infrastructure
 * Lowest operational burden — fully managed, serverless, no proxies, no connection pooling, no schema migrations
 * Lowest cost of all evaluated options ($10-50/month)
-* Document-store model enables shared Go interface with ARO kube-applier — potential code reuse across Azure and GCP
-* Per-MC database provides native per-tenant backup and restore
-* Disaster recovery is inherent: CLM is the source of truth for desired state. On MC project rebuild, a new Firestore database is created and CLM's adapter regular sync model resyncs all specs automatically — no manual data recovery needed. Status data is transient and will be re-reported by the agent once it starts.
+* Document schema aligned with ARO kube-applier desire types — shared Go interfaces and potential code reuse across Azure and GCP
+* Per-MC database pair provides native per-tenant backup and restore
+* Disaster recovery is inherent: CLM is the source of truth for desired state. On MC project rebuild, new Firestore databases are created and CLM's adapter regular sync model resyncs all specs automatically — no manual data recovery needed. Status data is transient and will be re-reported by the agent once it starts.
 * Automatic recovery after regional outage with no data loss
 
 ### Negative
