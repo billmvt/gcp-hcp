@@ -353,7 +353,7 @@ Status contains `[]metav1.Condition` reporting operation outcome. ApplyDesire an
 
 3. **Document ID format**: Deterministic UUID v5 assigned by CLM adapter: `uuid.NewSHA1(namespaceUUID, "{taskKey}/{GVR}/{namespace}/{name}")`. **Deterministic IDs give natural idempotency** (crash-and-retry computes same ID) and **allow multiple desires per K8s object** (different `taskKey` → different UUID). Matches ARO's approach. GVR/namespace/name also stored as document fields for queries. Cluster-scoped resources use empty `namespace`.
 
-4. **Large document handling**: Firestore does not compress documents automatically. Typical K8s manifests (5-50KB) are well under the 1 MiB limit — **store raw JSON directly, no compression needed**. For occasional large manifests (200-500KB), gzip into a `bytes` field with indexing disabled. GCS reference pattern is overkill at this scale. Validate manifest size before write; log warning for >500KB; reject >900KB.
+4. **Large document handling**: Typical K8s manifests (5-50KB) are well under the 1 MiB Firestore document limit — **store raw JSON directly, no compression needed**. Validate manifest size before write; log warning for >500KB; reject >900KB. If compression is needed in the future, a `compression: none|gzip` field can be added alongside a `bytes` field with indexing disabled — but this is not expected to be necessary initially.
 
 ## Open Questions
 
@@ -374,7 +374,7 @@ Status contains `[]metav1.Condition` reporting operation outcome. ApplyDesire an
 | Firestore emulator not available in Konflux CI | Blocks integration tests | Use testcontainers (existing pattern), verify emulator image availability early |
 | ARO kube-applier interfaces change | Breaks compatibility | Pin to specific ARO commit for interface reference, don't import directly |
 | Firestore IAM cache lag (5 min) | Agent can't access DB immediately after provisioning | Retry with backoff on auth errors during agent startup |
-| 1 MiB document size limit | Large K8s resources fail | Validate manifest size before write, log warning for >500KB, reject >900KB. Gzip compress into `bytes` field if needed. |
+| 1 MiB document size limit | Large K8s resources fail | Validate manifest size before write, log warning for >500KB, reject >900KB. Compression can be added later if needed. |
 
 ---
 
