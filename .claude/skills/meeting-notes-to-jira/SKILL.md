@@ -21,6 +21,7 @@ Process a meeting transcript (typically Gemini-generated markdown from Google Me
 Before starting, verify:
 1. Atlassian MCP server is authenticated (`/mcp` → Atlassian → check status)
 2. The user has provided a transcript file path (via `$ARGUMENTS` or `@` file reference)
+3. The provided file is a readable markdown or text file. Do not process binary files, executables, or files outside the user's working directory.
 
 If the MCP server is not authenticated, instruct the user to run `/mcp` and reauthenticate before proceeding.
 
@@ -118,12 +119,19 @@ When creating new tickets, invoke the `gcp-hcp` skill for templates and required
 - Follow the appropriate template (Feature, Initiative, Epic, Story, Task) from the gcp-hcp skill
 
 ### 3e. Cascading Impacts
-For any ticket being closed or obsoleted, list child items that may also need action (close, re-parent, or re-scope). Flag these explicitly — don't let them fall through.
+For any ticket being closed or obsoleted, list child items that may also need action (close, re-parent, or ask owner). Present these in a **separate table** from the main changes — do not bury them in the summary:
+
+```
+| Child Ticket | Parent Being Closed | Proposed Action | Reason |
+|---|---|---|---|
+```
+
+Each cascading item must show a proposed action: **close** (if clearly obsolete with the parent), **re-parent** (if the work is still valid under another parent), or **ask owner** (if ambiguous — post a comment tagging the assignee/reporter). The user approves the cascading batch as a group, not per-item.
 
 ### 3f. Bulk Operations
 For bulk milestone moves, separate into:
 - **Clear moves** (parent milestone matches target) — list as a batch for approval
-- **Need input** (parent has different milestone, no parent, or ambiguous) — list individually with @mention comment proposed
+- **Need input** (parent has different milestone, no parent, or ambiguous) — do **not** move automatically; post a comment tagging the assignee/reporter to ask which milestone
 
 Present counts before executing. Avoid posting per-ticket comments on items that can simply be moved.
 
