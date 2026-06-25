@@ -127,6 +127,8 @@ func (f *KubeApplierRootCmdFlags) ToKubeApplierOptions(ctx context.Context) (*ap
 
 	dyn, err := app.NewDynamicClient(kubeconfig)
 	if err != nil {
+		specsClient.Close()
+		statusClient.Close()
 		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
 	}
 

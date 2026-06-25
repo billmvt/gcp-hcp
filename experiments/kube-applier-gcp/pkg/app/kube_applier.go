@@ -45,12 +45,6 @@ func (o *Options) Run(ctx context.Context) error {
 	electionChecker := leaderelection.NewLeaderHealthzAdaptor(healthCheckTimeout)
 
 	var healthzServer, metricsServer *http.Server
-	defer func() {
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), httpShutdownTimeout)
-		defer shutdownCancel()
-		_ = shutdownHTTPServer(shutdownCtx, metricsServer, "metrics server")
-		_ = shutdownHTTPServer(shutdownCtx, healthzServer, "healthz server")
-	}()
 
 	errCh := make(chan error, 3)
 	wg := sync.WaitGroup{}
@@ -106,6 +100,12 @@ func (o *Options) Run(ctx context.Context) error {
 	}()
 
 	<-ctx.Done()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), httpShutdownTimeout)
+	defer shutdownCancel()
+	_ = shutdownHTTPServer(shutdownCtx, metricsServer, "metrics server")
+	_ = shutdownHTTPServer(shutdownCtx, healthzServer, "healthz server")
+
 	wg.Wait()
 	close(errCh)
 
