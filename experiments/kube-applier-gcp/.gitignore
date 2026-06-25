@@ -1,0 +1,4 @@
+# Compiled binaries (Makefile outputs)
+kube-applier-gcp
+desire-tool
+desirectl
