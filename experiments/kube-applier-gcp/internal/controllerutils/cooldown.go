@@ -5,6 +5,7 @@ package controllerutils
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	utilsclock "k8s.io/utils/clock"
@@ -24,6 +25,7 @@ type CooldownChecker interface {
 // CanSync returns true for a key, subsequent calls for the same key
 // return false until cooldownDuration has elapsed since the allowed call.
 type TimeBasedCooldownChecker struct {
+	mu               sync.Mutex
 	clock            utilsclock.PassiveClock
 	cooldownDuration time.Duration
 	nextExecTime     *lru.Cache
@@ -47,6 +49,9 @@ func (c *TimeBasedCooldownChecker) SetClock(clock utilsclock.PassiveClock) {
 // CanSync stamps now+cooldownDuration on a true return so subsequent calls
 // within the cooldown window return false.
 func (c *TimeBasedCooldownChecker) CanSync(_ context.Context, key any) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	now := c.clock.Now()
 
 	nextExecTime, ok := c.nextExecTime.Get(key)

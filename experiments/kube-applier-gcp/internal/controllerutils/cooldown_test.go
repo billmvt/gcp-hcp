@@ -2,6 +2,7 @@ package controllerutils
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -71,5 +72,31 @@ func TestTimeBasedCooldownChecker_RepeatedFalseDoesNotPreventTrue(t *testing.T) 
 	fakeClock.SetTime(now.Add(11 * time.Minute))
 	if !checker.CanSync(context.Background(), "key-1") {
 		t.Error("call after cooldown should be allowed despite repeated blocked calls")
+	}
+}
+
+func TestTimeBasedCooldownChecker_ConcurrentCanSync(t *testing.T) {
+	checker := NewTimeBasedCooldownChecker(10 * time.Minute)
+	const goroutines = 100
+	results := make(chan bool, goroutines)
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			defer wg.Done()
+			results <- checker.CanSync(context.Background(), "same-key")
+		}()
+	}
+	wg.Wait()
+	close(results)
+
+	trueCount := 0
+	for r := range results {
+		if r {
+			trueCount++
+		}
+	}
+	if trueCount != 1 {
+		t.Errorf("expected exactly 1 true from %d concurrent calls, got %d", goroutines, trueCount)
 	}
 }
