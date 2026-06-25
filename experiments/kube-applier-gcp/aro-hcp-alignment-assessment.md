@@ -62,12 +62,6 @@ application-level enforcement for directional integrity.
 | **`desirestatuswriter` create-or-replace** | Documented pattern for writing status to a separate database where the status document may not yet exist |
 | **Authentication and isolation details** | Explicit IAM role/condition documentation for Workload Identity and per-database access |
 
-### Questions for ARO HCP team
-
-1. Does ARO HCP track an equivalent of `ObservedDesireUpdateTime`? If so, under what field name? Aligning on this would help keep the status contract consistent.
-2. Does ARO HCP track `AppliedResourceGeneration`? The field lets the backend confirm a spec has been applied and the K8s object has advanced to the expected generation.
-3. Does ARO HCP use a cooldown gate, or does Cosmos change feed semantics make it unnecessary?
-
 ---
 
 ## Content Present in ARO HCP but Not in GCP HCP
@@ -79,11 +73,6 @@ application-level enforcement for directional integrity.
 | **`ReadManyDesire` future consideration** | ARO mentions potentially adding list/watch support | GCP does not mention this; probably not needed unless a concrete use case arises |
 | **`library-go/manifestclient`** | ARO uses this for fake K8s clients in unit tests | GCP uses standard client-go fakes; worth evaluating if manifestclient provides benefits |
 | **Integration test setup reference** | ARO points to `test-integration/kube-applier/README.md` | GCP documents emulator-based testing but could expand setup instructions |
-
-### Questions for ARO HCP team
-
-1. How is orphan cleanup triggered on ARO HCP? Is it a controller, a periodic sweep, or on-demand? This will inform whether we need `UntypedCRUD` or can use Firestore's document lifecycle tied to MC teardown.
-2. Has `ReadManyDesire` been implemented or is it still speculative?
 
 ---
 
@@ -111,7 +100,8 @@ The Go interface stack is intentionally compatible:
 
 ## Recommended Discussion Topics
 
-1. **`ObservedDesireUpdateTime` and `AppliedResourceGeneration`**: Should these be adopted as shared interface fields across both platforms?
-2. **Orphan cleanup pattern**: GCP's dual-database model may simplify orphan cleanup (delete the MC's Firestore databases on teardown), but cross-desire orphan detection within a live MC still needs a pattern.
-3. **Cooldown gate**: Is this useful for ARO HCP, or does Cosmos change feed behavior make it unnecessary?
+1. **`ObservedDesireUpdateTime` and `AppliedResourceGeneration`**: Should these be adopted as shared interface fields across both platforms? Does ARO HCP track an equivalent of `ObservedDesireUpdateTime` — and if so, under what field name? Does it track `AppliedResourceGeneration` to confirm a spec has been applied and the K8s object has advanced to the expected generation?
+2. **Orphan cleanup pattern**: GCP's dual-database model may simplify orphan cleanup (delete the MC's Firestore databases on teardown), but cross-desire orphan detection within a live MC still needs a pattern. How is orphan cleanup triggered on ARO HCP — a controller, a periodic sweep, or on-demand? This will inform whether GCP needs `UntypedCRUD` or can rely on Firestore's document lifecycle tied to MC teardown.
+3. **Cooldown gate**: Is this useful for ARO HCP, or does Cosmos change feed behavior make it unnecessary? GCP HCP uses an `UpdateTime`-based change detection cooldown to avoid hot loops — does the Cosmos change feed provide equivalent deduplication semantics?
 4. **Status reporting contract**: Aligning on which status fields exist and what they mean would make it easier to share backend logic or monitoring across platforms.
+5. **`ReadManyDesire`**: ARO HCP mentions potentially adding list/watch support. Has this been implemented or is it still speculative? GCP HCP does not reference this — probably not needed unless a concrete use case arises.
